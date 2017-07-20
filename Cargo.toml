@@ -1,6 +1,6 @@
 [package]
 name = "comrak"
-version = "0.1.4"
+version = "0.1.6"
 authors = ["Yuki Izumi <kivikakk@github.com>"]
 description = "A 100% CommonMark-compatible GitHub Flavored Markdown parser and formatter"
 documentation = "https://docs.rs/comrak"
@@ -24,7 +24,6 @@ doc = false
 
 [dependencies]
 typed-arena = "1.2.0"
-arena-tree = "0.3.0"
 regex = "0.2.1"
 lazy_static = "0.2.4"
 entities = "1.0.0"
