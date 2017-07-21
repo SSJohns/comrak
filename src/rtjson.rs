@@ -5,9 +5,9 @@ use parser::ComrakOptions;
 /// Formats an AST as HTML, modified by the given options.
 pub fn format_document<'a>(root: &'a AstNode<'a>, options: &ComrakOptions) -> String {
     let mut f = HtmlFormatter::new(options);
-    f.s += "'document' : [";
+    /*f.s += "'document' : [";*/
     f.format(root, false);
-    f.s += "]";
+    /*f.s += "]";*/
     f.s
 }
 
@@ -185,7 +185,7 @@ impl<'o> HtmlFormatter<'o> {
                 NodeValue::Text(ref literal) |
                 NodeValue::Code(ref literal) |
                 NodeValue::HtmlInline(ref literal) => self.escape(literal),
-                NodeValue::LineBreak | NodeValue::SoftBreak => self.s.push(' '),
+                NodeValue::LineBreak | NodeValue::SoftBreak => self.s += " { 'e': 'br' },",
                 _ => (),
             }
             self.format_children(node, true);
@@ -198,38 +198,42 @@ impl<'o> HtmlFormatter<'o> {
 
     fn format_node<'a>(&mut self, node: &'a AstNode<'a>, entering: bool) -> bool {
         match node.data.borrow().value {
-            NodeValue::Document => (),
+            NodeValue::Document => {
+              if entering {
+                self.s += "'document': [";
+              } else {
+                self.s += "],";
+              }
+              },
             NodeValue::BlockQuote => {
                 if entering {
                     self.cr();
                     self.s += "{ 'e': 'blockquote', 'c': [  ";
                 } else {
                     self.cr();
-                    self.s += " ] },";
+                    self.s += " ], },";
                 }
             }
             NodeValue::List(ref nl) => {
                 if entering {
                     self.cr();
                     if nl.list_type == ListType::Bullet {
-                        self.s += "<ul>\n";
-                    } else if nl.start == 1 {
-                        self.s += "<ol>\n";
+                        self.s += "{ 'e': 'list', 'o': False, 'c': [";
                     } else {
+                        self.s += "{ 'e': 'list', 'o': True, 'c': [";
+                    } /*else {
                         self.s += &format!("<ol start=\"{}\">\n", nl.start);
-                    }
-                } else if nl.list_type == ListType::Bullet {
-                    self.s += "</ul>\n";
+                    }*/
                 } else {
-                    self.s += "</ol>\n";
+                    self.s += "], },";
                 }
             }
             NodeValue::Item(..) => {
                 if entering {
                     self.cr();
-                    self.s += "<li>";
+                    self.s += "{ 'e': 'li', 'c': [";
                 } else {
-                    self.s += "</li>\n";
+                    self.s += "], }, ";
                 }
             }
             NodeValue::Heading(ref nch) => {
@@ -245,7 +249,7 @@ impl<'o> HtmlFormatter<'o> {
                     self.cr();
 
                     if ncb.info.is_empty() {
-                        self.s += "<pre><code>";
+                        self.s += "{ 'e': 'code', 'c': [";
                     } else {
                         let mut first_tag = 0;
                         while first_tag < ncb.info.len() &&
@@ -253,18 +257,18 @@ impl<'o> HtmlFormatter<'o> {
                             first_tag += 1;
                         }
 
-                        if self.options.github_pre_lang {
-                            self.s += "<pre lang=\"";
+                        /*if self.options.github_pre_lang {*/
+                          self.s += "{ 'e': 'code', 'l': '";
+                          self.escape(&ncb.info[..first_tag]);
+                          self.s += "', 'c': [";
+                        /*} else {
+                            self.s += "{ 'e': 'code', 'l': ''";
                             self.escape(&ncb.info[..first_tag]);
-                            self.s += "\"><code>";
-                        } else {
-                            self.s += "<pre><code class=\"language-";
-                            self.escape(&ncb.info[..first_tag]);
-                            self.s += "\">";
-                        }
+                            self.s += "', 'c': [";
+                        }*/
                     }
                     self.escape(&ncb.literal);
-                    self.s += "</code></pre>\n";
+                    self.s += "], }, ";
                 }
             }
             NodeValue::HtmlBlock(ref nhb) => {
@@ -281,7 +285,7 @@ impl<'o> HtmlFormatter<'o> {
             NodeValue::ThematicBreak => {
                 if entering {
                     self.cr();
-                    self.s += "<hr />\n";
+                    self.s += "{ e: 'br' }";
                 }
             }
             NodeValue::Paragraph => {
@@ -321,13 +325,13 @@ impl<'o> HtmlFormatter<'o> {
             }
             NodeValue::LineBreak => {
                 if entering {
-                    self.s += "<br />\n";
+                    self.s += "{ 'e': 'br' },";
                 }
             }
             NodeValue::SoftBreak => {
                 if entering {
                     if self.options.hardbreaks {
-                        self.s += "<br />\n";
+                        self.s += "{ 'e': 'br' },";
                     } else {
                         self.s += "\n";
                     }
@@ -335,9 +339,10 @@ impl<'o> HtmlFormatter<'o> {
             }
             NodeValue::Code(ref literal) => {
                 if entering {
-                    self.s += "<code>";
-                    self.escape(literal);
-                    self.s += "</code>";
+                  self.l = self.s.len();
+                  self.f.push(64);
+                  self.f.push(0);
+                  //self.escape(literal);
                 }
             }
             NodeValue::HtmlInline(ref literal) => {
@@ -364,36 +369,45 @@ impl<'o> HtmlFormatter<'o> {
             }
             NodeValue::Emph => {
                 if entering {
-                    self.s += "<em>";
-                } else {
+                  if entering {
+                      /*self.s += "<strong>";*/
+                      self.l = self.s.len();
+                      self.f.push(2);
+                      self.f.push(0);
+                  }
+                } /*else {
                     self.s += "</em>";
-                }
+                }*/
             }
             NodeValue::Strikethrough => {
                 if entering {
-                    self.s += "<del>";
-                } else {
+                  self.l = self.s.len();
+                  self.f.push(8);
+                  self.f.push(0);
+                } /*else {
                     self.s += "</del>";
-                }
+                }*/
             }
             NodeValue::Superscript => {
                 if entering {
-                    self.s += "<sup>";
-                } else {
+                  self.l = self.s.len();
+                  self.f.push(32);
+                  self.f.push(0);
+                } /*else {
                     self.s += "</sup>";
-                }
+                }*/
             }
             NodeValue::Link(ref nl) => {
                 if entering {
-                    self.s += "<a href=\"";
+                    self.s += "{ 'e': 'link', 'u': '";
                     self.escape_href(&nl.url);
-                    if !nl.title.is_empty() {
+                    /*if !nl.title.is_empty() {
                         self.s += "\" title=\"";
                         self.escape(&nl.title);
-                    }
-                    self.s += "\">";
+                    }*/
+                    self.s += "', 't': ";
                 } else {
-                    self.s += "</a>";
+                    self.s += "},";
                 }
             }
             NodeValue::Image(ref nl) => {
@@ -413,32 +427,32 @@ impl<'o> HtmlFormatter<'o> {
             NodeValue::Table(..) => {
                 if entering {
                     self.cr();
-                    self.s += "<table>\n";
+                    self.s += "{ 'e': 'table', ";
                 } else {
                     if !node.last_child()
                             .unwrap()
                             .same_node(node.first_child().unwrap()) {
-                        self.s += "</tbody>";
+                        self.s += "],";
                     }
-                    self.s += "</table>\n";
+                    self.s += "},";
                 }
             }
             NodeValue::TableRow(header) => {
                 if entering {
                     self.cr();
                     if header {
-                        self.s += "<thead>";
+                        self.s += "'h': [";
                         self.cr();
                     }
-                    self.s += "<tr>";
+                    self.s += "[ ";
                 } else {
                     self.cr();
-                    self.s += "</tr>";
+                    self.s += "],";
                     if header {
                         self.cr();
-                        self.s += "</thead>";
+                        self.s += "],";
                         self.cr();
-                        self.s += "<tbody>";
+                        self.s += "'b': [";
                     }
                 }
             }
@@ -464,9 +478,9 @@ impl<'o> HtmlFormatter<'o> {
                 if entering {
                     self.cr();
                     if in_header {
-                        self.s += "<th";
+                        self.s += "{ ";
                     } else {
-                        self.s += "<td";
+                        self.s += "{ 'c': [ ";
                     }
 
                     let mut start = node.parent().unwrap().first_child().unwrap();
@@ -477,17 +491,17 @@ impl<'o> HtmlFormatter<'o> {
                     }
 
                     match alignments[i] {
-                        TableAlignment::Left => self.s += " align=\"left\"",
-                        TableAlignment::Right => self.s += " align=\"right\"",
-                        TableAlignment::Center => self.s += " align=\"center\"",
+                        TableAlignment::Left => self.s += " 'a': 'l',",
+                        TableAlignment::Right => self.s += " 'a': 'r',",
+                        TableAlignment::Center => self.s += " 'a': 'c',",
                         TableAlignment::None => (),
                     }
 
-                    self.s += ">";
+                    self.s += "'c': [ ";
                 } else if in_header {
-                    self.s += "</th>";
+                    self.s += " ],";
                 } else {
-                    self.s += "</td>";
+                    self.s += " ],";
                 }
             }
         }
