@@ -108,3 +108,12 @@ pub fn markdown_to_html(md: &str, options: &ComrakOptions) -> String {
     let root = parse_document(&arena, md, options);
     format_html(root, options)
 }
+
+/// Render HTML to CommonMark.
+///
+/// See the documentation of the crate root for an example.
+pub fn html_to_commonmark(html: &str, options: &ComrakOptions) -> String {
+    let arena = Arena::new();
+    let root = parse_document(&arena, html, options);
+    format_commonmark(root, options)
+}
