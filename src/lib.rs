@@ -86,6 +86,7 @@ mod arena_tree;
 mod parser;
 mod scanners;
 mod html;
+mod rtjson;
 mod cm;
 mod ctype;
 pub mod nodes;

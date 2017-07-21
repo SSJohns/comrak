@@ -14,6 +14,10 @@ categories = ["text-processing", "parsing", "command-line-utilities"]
 [badges]
 travis-ci = { repository = "kivikakk/comrak" }
 
+[lib]
+name = "comrak"
+crate-type = ["rlib", "dylib"] # could be `staticlib` as well
+
 [profile.release]
 lto = true
 
