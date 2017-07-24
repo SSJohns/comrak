@@ -4,14 +4,14 @@ use parser::ComrakOptions;
 
 /// Formats an AST as HTML, modified by the given options.
 pub fn format_document<'a>(root: &'a AstNode<'a>, options: &ComrakOptions) -> String {
-    let mut f = HtmlFormatter::new(options);
+    let mut f = RTJsonFormatter::new(options);
     /*f.s += "'document' : [";*/
     f.format(root, false);
     /*f.s += "]";*/
     f.s
 }
 
-struct HtmlFormatter<'o> {
+struct RTJsonFormatter<'o> {
     s: String,
     f: Vec<u8>,
     l: usize,
@@ -75,9 +75,9 @@ fn tagfilter_block(input: &str, mut o: &mut String) {
     }
 }
 
-impl<'o> HtmlFormatter<'o> {
+impl<'o> RTJsonFormatter<'o> {
     fn new(options: &'o ComrakOptions) -> Self {
-        HtmlFormatter {
+        RTJsonFormatter {
             s: String::with_capacity(1024),
             f: Vec::new(),
             l: 0,
