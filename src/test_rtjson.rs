@@ -45,8 +45,7 @@ where
 fn basic() {
     rtjson(
         concat!(
-            "Hello, **this is bold**, *this is italic*, ***this is both***. And [this is a link with **bold** and *italic*](https://reddit.com), ~~strikethrough~~, ^(superscript), `monospace`.\n\nHello, **this is bold**, *this is italic*, ***this is both***. And [this is a link with **bold** and *italic*](https://reddit.com).
-"
+            "[this is a link with **bold** and *italic*](https://reddit.com)"
         ),
         concat!(
             "'document': [ { 'e': 'par', 'c': [ { 'e': 'text',   't': 'Hello, this is bold, this is italic, this is both. And ',  # noqa 'f': [[1, 7, 12], [2, 21, 14], [3, 37, 12]], }, { 'e': 'link', 'u': 'https://reddit.com', 't': 'this is a link with bold and italic', 'f': [[1, 20, 4], [2, 29, 6]], }, { 'e': 'text', 't': ', strikethrough, superscript, monospace.', 'f': [[8, 2, 13], [32, 17, 11], [64, 30, 9]],   }   ],   }, { 'e': 'par',   'c': [ { 'e': 'text', 't': 'Hello, this is bold, this is italic, this is both. And ', 'f': [[1, 7, 12], [2, 21, 14], [3, 37, 12]], }, { 'e': 'link', 'u': 'https://reddit.com', 't': 'this is a link with bold and italic', 'f': [[1, 20, 4], [2, 29, 6]], }, { 'e': 'text', 't': '.', } ], }, ],"
