@@ -14,7 +14,6 @@ pub fn format_document<'a>(root: &'a AstNode<'a>, options: &ComrakOptions) -> St
 struct RTJsonFormatter<'o> {
     s: String,
     f: Vec<[u8; 3]>,
-    l: Vec<usize>,
     link: bool,
     v: Vec<[u8; 3]>,
     zero_index: usize,
@@ -83,7 +82,6 @@ impl<'o> RTJsonFormatter<'o> {
         RTJsonFormatter {
             s: String::with_capacity(1024),
             f: Vec::new(),
-            l: Vec::new(),
             v: Vec::new(),
             link: false,
             zero_index: 0,
@@ -177,6 +175,15 @@ impl<'o> RTJsonFormatter<'o> {
 
             i += 1;
         }
+    }
+
+    fn pull_formatting(&mut self) {
+        for a in self.f.iter() {
+            self.s += &format!("{:?},", a);
+        }
+        self.zero_index = 0;
+        self.f.clear();
+        self.v.clear();
     }
 
     fn format_children<'a>(&mut self, node: &'a AstNode<'a>, plain: bool) {
@@ -313,32 +320,31 @@ impl<'o> RTJsonFormatter<'o> {
             }
             NodeValue::Text(ref literal) => {
                 if entering {
-                    if self.zero_index == 0 {
-                        self.zero_index = self.s.len();
-                        println!("{:?}, {}", self.s.len(), self.zero_index);
-                    }
                     if self.link {
                         self.escape(literal);
                     } else {
+                        if self.zero_index == 0 {
+                            self.zero_index = self.s.len();
+                            println!("{:?}, {}", self.s.len(), self.zero_index);
+                        }
                         self.s += "{ 'e': 'text', 't' : '";
                         self.escape(literal);
                     }
                 } else {
-                    // self.zero_index = 0;
                     if self.link {
                         self.s += "";
                     } else {
-                        // if !self.f.is_empty() {
-                        //     self.l = self.s.len() - self.l;
-                        //     self.f.push(self.l as u8);
-                        //     let form = format!("[{:?}]", self.f );
-                        //     self.f.clear();
-                        //     self.s += "', 'f': ";
-                        //     self.s.push_str(&form);
-                        //     self.s += "},";
-                        // } else {
+                        if !self.f.is_empty() {
+                            // let siz = self.s.len()- self.zero_index;
+                            //self.f.push(siz);
+                            //let form = format!("[{:?}]", self.f );
+                            //self.f.clear();
+                            self.s += "', 'f': ";
+                            self.pull_formatting();
+                            self.s += "},";
+                        } else {
                             self.s += "' },";
-                        // }
+                        }
                     }
                 }
             }
@@ -359,21 +365,24 @@ impl<'o> RTJsonFormatter<'o> {
             NodeValue::Code(ref literal) => {
                 if entering {
                     /*self.s += "<strong>";*/
-                    self.l.push(self.s.len());
-                    let mut val = 64;
-                    if !self.f.is_empty() {
-                      for a in self.f.iter() {
-                          val += a[0];
-                      }
-                    }
+                    // self.l.push(self.s.len());
+                    let val = 64;
+                    // if !self.v.is_empty() {
+                    //   for a in self.v.iter() {
+                    //       val += a[0];
+                    //   }
+                    // }
                     let v: [u8; 3] = [val, (self.s.len() - self.zero_index) as u8, 0];
                     self.f.push(v);
+                    self.v.push(v);
+                    self.escape(literal);
                 } else {
-                    let siz = self.s.len() - self.zero_index - 1;
                     let vain = &mut self.f.pop().unwrap();
+                    let siz = self.s.len() - self.zero_index - vain[1] as usize;
                     vain[2] = siz as u8;
                     //self.f. = (self.s.len() as u8) - self.l;
                     self.f.push(*vain);
+                    self.v.pop();
                     /*self.s += "</strong>";*/
                 }
             }
@@ -390,110 +399,110 @@ impl<'o> RTJsonFormatter<'o> {
             NodeValue::Strong => {
                 if entering {
                     /*self.s += "<strong>";*/
-                    self.l.push(self.s.len());
+                    // self.l.push(self.s.len());
                     let mut val = 1;
-                    if !self.f.is_empty() {
-                      for a in self.f.iter() {
+                    if !self.v.is_empty() {
+                      for a in self.v.iter() {
                           val += a[0];
                       }
                     }
                     let v = [val, (self.s.len() - self.zero_index) as u8, 0];
                     self.f.push(v);
+                    self.v.push(v);
                 } else {
-                    let siz = self.s.len() - self.l.pop().unwrap();
-                    println!("{} {} {:?}", self.s.len() as u32, siz, node.data.borrow());
                     let vain = &mut self.f.pop().unwrap();
-                    println!("{:?}", siz);
+                    let siz = self.s.len()  - self.zero_index - vain[1] as usize;
                     vain[2] = siz as u8;
                     //self.f. = (self.s.len() as u8) - self.l;
                     self.f.push(*vain);
+                    self.v.pop();
                     /*self.s += "</strong>";*/
                 }
             }
             NodeValue::Emph => {
                 if entering {
                     /*self.s += "<strong>";*/
-                    self.l.push(self.s.len());
+                    // self.l.push(self.s.len());
                     let mut val = 2;
-                    if !self.f.is_empty() {
-                      for a in self.f.iter() {
+                    if !self.v.is_empty() {
+                      for a in self.v.iter() {
                           val += a[0];
                       }
                     }
                     let v = [val, (self.s.len() - self.zero_index) as u8, 0];
                     self.f.push(v);
+                    self.v.push(v);
                 } else {
-                    let siz = self.s.len() - self.l.pop().unwrap();
                     let vain = &mut self.f.pop().unwrap();
-                    println!("{:?}", siz);
+                    let siz = self.s.len()  - self.zero_index - vain[1] as usize;
                     vain[2] = siz as u8;
                     //self.f. = (self.s.len() as u8) - self.l;
                     self.f.push(*vain);
+                    self.v.pop();
                     /*self.s += "</strong>";*/
                 }
             }
             NodeValue::Strikethrough => {
                 if entering {
                     /*self.s += "<strong>";*/
-                    self.l.push(self.s.len());
+                    // self.l.push(self.s.len());
                     let mut val = 8;
-                    if !self.f.is_empty() {
-                      for a in self.f.iter() {
+                    if !self.v.is_empty() {
+                      for a in self.v.iter() {
                           val += a[0];
                       }
                     }
                     let v = [val, (self.s.len() - self.zero_index) as u8,0];
                     self.f.push(v);
+                    self.v.push(v);
                 } else {
-                    let siz = self.s.len() - self.l.pop().unwrap();
                     let vain = &mut self.f.pop().unwrap();
+                    let siz = self.s.len()  - self.zero_index - vain[1] as usize;
                     vain[2] = siz as u8;
                     //self.f. = (self.s.len() as u8) - self.l;
                     self.f.push(*vain);
+                    self.v.pop();
                     /*self.s += "</strong>";*/
                 }
             }
             NodeValue::Superscript => {
                 if entering {
                     /*self.s += "<strong>";*/
-                    self.l.push(self.s.len());
                     let mut val = 32;
-                    if !self.f.is_empty() {
-                      for a in self.f.iter() {
+                    if !self.v.is_empty() {
+                      for a in self.v.iter() {
                           val += a[0];
                       }
                     }
                     let v = [val, (self.s.len() - self.zero_index) as u8, 0];
                     self.f.push(v);
+                    self.v.push(v);
                 } else {
-                    let siz = self.s.len() - self.l.pop().unwrap();
                     let vain = &mut self.f.pop().unwrap();
+                    let siz = self.s.len()  - self.zero_index - vain[1] as usize;
                     vain[2] = siz as u8;
                     //self.f. = (self.s.len() as u8) - self.l;
                     self.f.push(*vain);
+                    self.v.pop();
                     /*self.s += "</strong>";*/
                 }
             }
             NodeValue::Link(ref nl) => {
                 if entering {
-                    self.s += "{ 'e': 'link', 'u': '";
+                    self.s += "{'e':'link','u':'";
                     self.escape_href(&nl.url);
                     self.link = true;
                     /*if !nl.title.is_empty() {
                         self.s += "\" title=\"";
                         self.escape(&nl.title);
                     }*/
-                    self.s += "', 't': '";
+                    self.s += "','t':'";
                     self.zero_index = self.s.len();
                 } else {
                     self.link = false;
-                    self.s += "'}, 'f': [";
-                    for a in self.f.iter() {
-                        let s = format!("{:?}",a);
-                        self.s += &s;//"[" + String::from_utf8(a).unwrap() + "]";
-                    }
-                    self.zero_index = 0;
-                    self.s += "]}";
+                    self.s += "', 'f': [";
+                    self.pull_formatting();
+                    self.s += "],},";
                 }
             }
             NodeValue::Image(ref nl) => {
