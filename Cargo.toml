@@ -30,6 +30,7 @@ entities = "1.0.0"
 unicode_categories = "0.1.1"
 clap = { version = "2.22.2", optional = true }
 clippy = { version = "~0.0.123", optional = true }
+serde_json = "1.0"
 
 [features]
 default = ["clap"]
