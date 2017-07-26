@@ -185,6 +185,16 @@ impl<'o> RTJsonFormatter<'o> {
         self.f.clear();
         self.v.clear();
     }
+    //
+    // fn split_on_char(&mut self, seperators: &[char], literal: String){
+    //     let items = literal.split(seperators);
+    //     for item in it {
+    //         self.s += "{'e':'raw','t':'";
+    //         println!("{}", item);
+    //         self.escape(item);
+    //         self.s += "'},";
+    //     }
+    // }
 
     fn format_children<'a>(&mut self, node: &'a AstNode<'a>, plain: bool) {
         for n in node.children() {
@@ -213,7 +223,7 @@ impl<'o> RTJsonFormatter<'o> {
         match node.data.borrow().value {
             NodeValue::Document => {
               if entering {
-                self.s += "'document': [";
+                self.s += "'document':[";
               } else {
                 self.s += "],";
               }
@@ -262,7 +272,7 @@ impl<'o> RTJsonFormatter<'o> {
                     self.cr();
 
                     if ncb.info.is_empty() {
-                        self.s += "{ 'e': 'code', 'c': [";
+                        self.s += "{'e':'code','c':[";
                     } else {
                         let mut first_tag = 0;
                         while first_tag < ncb.info.len() &&
@@ -270,18 +280,19 @@ impl<'o> RTJsonFormatter<'o> {
                             first_tag += 1;
                         }
 
-                        /*if self.options.github_pre_lang {*/
-                          self.s += "{ 'e': 'code', 'l': '";
-                          self.escape(&ncb.info[..first_tag]);
-                          self.s += "', 'c': [";
-                        /*} else {
-                            self.s += "{ 'e': 'code', 'l': ''";
-                            self.escape(&ncb.info[..first_tag]);
-                            self.s += "', 'c': [";
-                        }*/
+                        self.s += "{'e':'code','l':'";
+                        self.escape(&ncb.info[..first_tag]);
+                        self.s += "','c':[";
                     }
-                    self.escape(&ncb.literal);
-                    self.s += "], }, ";
+
+                    for it in ncb.literal.split('\n') {
+                        self.s += "{'e':'raw','t':'";
+                        println!("item:{}", it);
+                        self.escape(it);
+                        self.s += "'},";
+                    }
+                    //self.escape(&ncb.literal);
+                    self.s += "],},";
                 }
             }
             NodeValue::HtmlBlock(ref nhb) => {
@@ -320,32 +331,79 @@ impl<'o> RTJsonFormatter<'o> {
             }
             NodeValue::Text(ref literal) => {
                 if entering {
-                    if self.link {
-                        self.escape(literal);
-                    } else {
-                        if self.zero_index == 0 {
-                            self.zero_index = self.s.len();
-                            println!("{:?}, {}", self.s.len(), self.zero_index);
-                        }
-                        self.s += "{ 'e': 'text', 't' : '";
-                        self.escape(literal);
+                    match node.parent().unwrap().data.borrow().value {
+                        NodeValue::Link(ref nl) => self.escape(literal),
+                        NodeValue::Text(ref literal) |
+                        NodeValue::Code(ref literal) |
+                        NodeValue::HtmlInline(ref literal) => self.escape(literal),
+                        NodeValue::Strong | NodeValue::Strikethrough | NodeValue::Emph => self.escape(literal),
+                        NodeValue::LineBreak | NodeValue::SoftBreak => self.s += " { 'e': 'br' },",
+                        _ => {
+                            //println!("Possibly first child of bold {:?}", node.parent().unwrap().data.borrow().value);
+                            if node.same_node(node.parent().unwrap().first_child().unwrap()) {
+                                if self.zero_index == 0 {
+                                    self.zero_index = self.s.len();
+                                    println!("IN text: {:?}, {}", self.s.len(), self.zero_index);
+                                }
+                                self.s += "{ 'e': 'text', 't' : '";
+                                self.escape(literal);
+                            }
+                        },
                     }
+                    // if self.link {
+                    //     self.escape(literal);
+                    // } else if node.same_node(node.parent().unwrap().first_child().unwrap() ){
+                    //     println!("Possibly first child of bold {:?}", node.parent().unwrap().data.borrow().value);
+                    //     if self.zero_index == 0 {
+                    //         self.zero_index = self.s.len();
+                    //         println!("{:?}, {}", self.s.len(), self.zero_index);
+                    //     }
+                    //     self.s += "{ 'e': 'text', 't' : '";
+                    //     self.escape(literal);
+                    // }
                 } else {
-                    if self.link {
-                        self.s += "";
-                    } else {
-                        if !self.f.is_empty() {
-                            // let siz = self.s.len()- self.zero_index;
-                            //self.f.push(siz);
-                            //let form = format!("[{:?}]", self.f );
-                            //self.f.clear();
-                            self.s += "', 'f': ";
-                            self.pull_formatting();
-                            self.s += "},";
-                        } else {
-                            self.s += "' },";
-                        }
+                    println!("Ending is picking? {:?}", node.parent().unwrap().data.borrow().value);
+                    match node.parent().unwrap().data.borrow().value {
+                        NodeValue::Link(ref nl) => (),
+                        NodeValue::Code(ref literal) => (),
+                        NodeValue::Strikethrough |
+                        NodeValue::Superscript |
+                        NodeValue::Strong | NodeValue::Emph => (),
+                        _ => {
+                            if node.same_node(node.parent().unwrap().last_child().unwrap()) {
+                                if !self.f.is_empty() {
+                                    // let siz = self.s.len()- self.zero_index;
+                                    //self.f.push(siz);
+                                    //let form = format!("[{:?}]", self.f );
+                                    //self.f.clear();
+                                    self.s += "', 'f': ";
+                                    self.pull_formatting();
+                                    self.s += "},";
+                                } else {
+                                    self.s += "' },";
+                                }
+                            } else {
+                                ()
+                            }
+                        },
                     }
+                    // println!("{:?}", node.parent().unwrap().data.borrow().value);
+                    // let start = node.parent().unwrap().data.borrow().value;
+                    // if start != NodeValue::Strong || start != NodeValue::Emph {
+                    //     if !self.f.is_empty() {
+                    //         // let siz = self.s.len()- self.zero_index;
+                    //         //self.f.push(siz);
+                    //         //let form = format!("[{:?}]", self.f );
+                    //         //self.f.clear();
+                    //         self.s += "', 'f': ";
+                    //         self.pull_formatting();
+                    //         self.s += "},";
+                    //     } else {
+                    //         self.s += "' },";
+                    //     }
+                    // } else {
+                    //     self.escape(literal);
+                    // }
                 }
             }
             NodeValue::LineBreak => {
@@ -373,16 +431,16 @@ impl<'o> RTJsonFormatter<'o> {
                     //   }
                     // }
                     let v: [u8; 3] = [val, (self.s.len() - self.zero_index) as u8, 0];
-                    self.f.push(v);
+                    //self.f.push(v);
                     self.v.push(v);
                     self.escape(literal);
                 } else {
-                    let vain = &mut self.f.pop().unwrap();
+                    let vain = &mut self.v.pop().unwrap();
                     let siz = self.s.len() - self.zero_index - vain[1] as usize;
                     vain[2] = siz as u8;
                     //self.f. = (self.s.len() as u8) - self.l;
                     self.f.push(*vain);
-                    self.v.pop();
+                    //self.v.pop();
                     /*self.s += "</strong>";*/
                 }
             }
@@ -407,15 +465,17 @@ impl<'o> RTJsonFormatter<'o> {
                       }
                     }
                     let v = [val, (self.s.len() - self.zero_index) as u8, 0];
-                    self.f.push(v);
+                    //self.f.push(v);
                     self.v.push(v);
+                    println!("bold {:?}", self.f);
                 } else {
-                    let vain = &mut self.f.pop().unwrap();
+                    println!("bold {:?}", self.s);
+                    let vain = &mut self.v.pop().unwrap();
+                    println!("vainity {:?}", vain);
                     let siz = self.s.len()  - self.zero_index - vain[1] as usize;
                     vain[2] = siz as u8;
                     //self.f. = (self.s.len() as u8) - self.l;
                     self.f.push(*vain);
-                    self.v.pop();
                     /*self.s += "</strong>";*/
                 }
             }
@@ -430,15 +490,15 @@ impl<'o> RTJsonFormatter<'o> {
                       }
                     }
                     let v = [val, (self.s.len() - self.zero_index) as u8, 0];
-                    self.f.push(v);
+                    //self.f.push(v);
                     self.v.push(v);
                 } else {
-                    let vain = &mut self.f.pop().unwrap();
+                    let vain = &mut self.v.pop().unwrap();
                     let siz = self.s.len()  - self.zero_index - vain[1] as usize;
                     vain[2] = siz as u8;
                     //self.f. = (self.s.len() as u8) - self.l;
                     self.f.push(*vain);
-                    self.v.pop();
+                    //self.v.pop();
                     /*self.s += "</strong>";*/
                 }
             }
@@ -453,15 +513,15 @@ impl<'o> RTJsonFormatter<'o> {
                       }
                     }
                     let v = [val, (self.s.len() - self.zero_index) as u8,0];
-                    self.f.push(v);
+                    //self.f.push(v);
                     self.v.push(v);
                 } else {
-                    let vain = &mut self.f.pop().unwrap();
+                    let vain = &mut self.v.pop().unwrap();
                     let siz = self.s.len()  - self.zero_index - vain[1] as usize;
                     vain[2] = siz as u8;
                     //self.f. = (self.s.len() as u8) - self.l;
                     self.f.push(*vain);
-                    self.v.pop();
+                    //self.v.pop();
                     /*self.s += "</strong>";*/
                 }
             }
@@ -475,15 +535,15 @@ impl<'o> RTJsonFormatter<'o> {
                       }
                     }
                     let v = [val, (self.s.len() - self.zero_index) as u8, 0];
-                    self.f.push(v);
+                    //self.f.push(v);
                     self.v.push(v);
                 } else {
-                    let vain = &mut self.f.pop().unwrap();
+                    let vain = &mut self.v.pop().unwrap();
                     let siz = self.s.len()  - self.zero_index - vain[1] as usize;
                     vain[2] = siz as u8;
                     //self.f. = (self.s.len() as u8) - self.l;
                     self.f.push(*vain);
-                    self.v.pop();
+                    //self.v.pop();
                     /*self.s += "</strong>";*/
                 }
             }
