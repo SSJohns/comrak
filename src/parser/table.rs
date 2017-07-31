@@ -127,7 +127,6 @@ fn row(string: &str) -> Option<Vec<String>> {
         let cell_matched = scanners::table_cell(&string[offset..]).unwrap_or(0);
         let mut pipe_matched = scanners::table_cell_end(&string[offset + cell_matched..])
             .unwrap_or(0);
-
         if cell_matched > 0 || pipe_matched > 0 {
             let mut cell = unescape_pipes(&string[offset..offset + cell_matched]);
             trim(&mut cell);

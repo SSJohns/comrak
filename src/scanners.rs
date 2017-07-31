@@ -247,7 +247,7 @@ pub fn table_start(line: &str) -> Option<usize> {
 
 pub fn table_cell(line: &str) -> Option<usize> {
     lazy_static! {
-        static ref RE: Regex = Regex::new(&format!(r"\A{}", *TABLE_CELL)).unwrap();
+        static ref RE: Regex = Regex::new(&format!(r"\A {}", *TABLE_CELL)).unwrap();
     }
 
     search(&RE, line)
